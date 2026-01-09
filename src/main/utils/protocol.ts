@@ -65,38 +65,37 @@ export function registerProtocols() {
       }
       const mimeType = mimeTypes[ext] || 'video/mp4'
 
+      // Parse range or default to streaming first chunk
+      let start = 0
+      let end = fileSize - 1
+
       if (rangeHeader) {
         const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
-        if (!match) {
-          return new Response('Invalid range', { status: 416 })
+        if (match) {
+          start = parseInt(match[1], 10)
+          end = match[2] ? parseInt(match[2], 10) : fileSize - 1
         }
-
-        const start = parseInt(match[1], 10)
-        const end = match[2] ? parseInt(match[2], 10) : fileSize - 1
-        const length = end - start + 1
-
-        const buffer = Buffer.alloc(length)
-        const fd = fs.openSync(filePath, 'r')
-        fs.readSync(fd, buffer, 0, length, start)
-        fs.closeSync(fd)
-
-        return new Response(buffer, {
-          status: 206,
-          headers: {
-            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': String(length),
-            'Content-Type': mimeType
-          }
-        })
+      } else {
+        // For initial request without range, stream first 1MB chunk
+        // This prevents loading entire file into memory for large videos
+        end = Math.min(1024 * 1024, fileSize - 1)
       }
 
-      const data = fs.readFileSync(filePath)
-      return new Response(data, {
+      const length = end - start + 1
+
+      // Stream the requested chunk
+      const buffer = Buffer.alloc(length)
+      const fd = fs.openSync(filePath, 'r')
+      fs.readSync(fd, buffer, 0, length, start)
+      fs.closeSync(fd)
+
+      return new Response(buffer, {
+        status: rangeHeader ? 206 : 200,
         headers: {
-          'Content-Type': mimeType,
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
           'Accept-Ranges': 'bytes',
-          'Content-Length': String(fileSize)
+          'Content-Length': String(length),
+          'Content-Type': mimeType
         }
       })
     } catch (error) {
