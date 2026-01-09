@@ -250,7 +250,12 @@ export default function Sidebar() {
       <div className="sidebar-footer">
         {/* Server status and controls */}
         <div className="sidebar-footer-section">
-          <div className="sidebar-footer-tunnel">
+          <button
+            className={`sidebar-footer-tunnel ${tunnelInfo.isActive ? 'active' : ''} ${tunnelLoading ? 'loading' : ''}`}
+            onClick={handleTunnelToggle}
+            disabled={tunnelLoading}
+            title={tunnelLoading ? 'Connecting...' : tunnelInfo.isActive ? 'Click to stop server' : 'Click to start server'}
+          >
             <div className="sidebar-footer-tunnel-info">
               <span className="sidebar-footer-tunnel-icon">
                 <Globe size={18} />
@@ -261,19 +266,14 @@ export default function Sidebar() {
                   {tunnelLoading ? (
                     <span className="status-loading">Connecting...</span>
                   ) : tunnelInfo.isActive ? (
-                    <span className="status-active">Active</span>
+                    <span className="status-active">Online</span>
                   ) : (
-                    <span className="status-inactive">Inactive</span>
+                    <span className="status-inactive">Offline</span>
                   )}
                 </div>
               </div>
             </div>
-            <button
-              className={`sidebar-footer-toggle ${tunnelInfo.isActive ? 'active' : ''} ${tunnelLoading ? 'loading' : ''}`}
-              onClick={handleTunnelToggle}
-              disabled={tunnelLoading}
-              title={tunnelLoading ? 'Connecting...' : tunnelInfo.isActive ? 'Stop Server' : 'Start Server'}
-            >
+            <div className="sidebar-footer-toggle">
               {tunnelLoading ? (
                 <Loader2 size={14} className="spinner-icon" />
               ) : tunnelInfo.isActive ? (
@@ -281,8 +281,8 @@ export default function Sidebar() {
               ) : (
                 '🔴'
               )}
-            </button>
-          </div>
+            </div>
+          </button>
           <div className="sidebar-footer-tunnel-url">
             <input
               type="text"

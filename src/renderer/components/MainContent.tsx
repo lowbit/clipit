@@ -156,7 +156,7 @@ export default function MainContent() {
       if (result.success) {
         if (result.shareUrl) {
           await window.clipit.copyToClipboard(result.shareUrl)
-          addToast(result.alreadyShared ? 'Already shared - URL copied' : 'Shared - URL copied', 'success')
+          addToast(result.alreadyShared ? 'URL copied to clipboard!' : 'Share URL copied to clipboard!', 'success')
           // Notify sidebar that tunnel state may have changed
           window.dispatchEvent(new Event('tunnel-state-changed'))
         } else {

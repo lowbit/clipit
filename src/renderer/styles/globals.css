@@ -761,6 +761,7 @@ body {
   align-items: center;
   gap: 10px;
   animation: toast-in 0.3s ease;
+  cursor: pointer;
 }
 
 .toast.success {
@@ -771,8 +772,33 @@ body {
   border-color: var(--danger);
 }
 
+.toast-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
 .toast-message {
   font-size: 13px;
+}
+
+.toast-prominent {
+  padding: 16px 20px;
+  background: var(--success);
+  border: 2px solid var(--success);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+  animation: toast-prominent-in 0.4s ease, toast-pulse 2s ease-in-out;
+}
+
+.toast-prominent .toast-icon {
+  color: white;
+}
+
+.toast-prominent .toast-message {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
 }
 
 @keyframes toast-in {
@@ -783,6 +809,26 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes toast-prominent-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
   }
 }
 
@@ -1007,6 +1053,32 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.sidebar-footer-tunnel:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+}
+
+.sidebar-footer-tunnel:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.sidebar-footer-tunnel.active {
+  border-color: var(--success);
+}
+
+.sidebar-footer-tunnel.active:hover:not(:disabled) {
+  border-color: var(--accent);
 }
 
 .sidebar-footer-tunnel-info {
@@ -1064,24 +1136,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
   flex-shrink: 0;
-}
-
-.sidebar-footer-toggle:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--bg-secondary);
-}
-
-.sidebar-footer-toggle:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.sidebar-footer-toggle.loading {
-  border-color: var(--accent);
 }
 
 .spinner-icon {
