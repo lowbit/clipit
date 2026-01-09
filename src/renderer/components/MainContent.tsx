@@ -38,6 +38,7 @@ export default function MainContent() {
   useEffect(() => {
     if (selectedClip?.type === 'video') {
       setIsVideoLoading(true)
+      setIsPlaying(false)
     }
   }, [selectedClip])
 

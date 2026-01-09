@@ -10,10 +10,10 @@ const defaults: Settings = {
   shareDir: '',
   generateThumbnails: true,
   hasSeenTunnelNotice: false,
-  encodeOnShare: false,
-  codec: 'h264',
-  quality: 'medium',
-  fps: 'original',
+  encodeOnShare: true,
+  codec: 'h265',
+  quality: 'low',
+  fps: '30',
   resolution: 'original',
   preferredEncoder: 'auto'
 }
@@ -31,7 +31,9 @@ class SettingsStore {
   }
 
   getAll(): Settings {
-    return this.store.get('settings', defaults)
+    const stored = this.store.get('settings', defaults)
+    // Merge with defaults to ensure new fields are present
+    return { ...defaults, ...stored }
   }
 
   get<K extends keyof Settings>(key: K): Settings[K] {

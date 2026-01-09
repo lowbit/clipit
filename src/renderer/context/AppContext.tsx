@@ -187,6 +187,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [selectedClip])
 
   const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
+    const wasConfigured = isConfigured
+
     await window.clipit.setSettings(newSettings)
     const updated = await window.clipit.getSettings()
     setSettings(updated)
@@ -194,11 +196,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const configured = await window.clipit.isConfigured()
     setIsConfigured(configured)
 
+    // Show tunnel notice after first setup
+    if (!wasConfigured && configured && !updated.hasSeenTunnelNotice) {
+      setShowTunnelNotice(true)
+    }
+
     if (newSettings.recordingsDir !== undefined && configured) {
       const loadedGames = await window.clipit.getGames()
       setGames(loadedGames)
     }
-  }, [])
+  }, [isConfigured])
 
   const pickDirectory = useCallback(async (title: string) => {
     return window.clipit.pickDirectory(title)

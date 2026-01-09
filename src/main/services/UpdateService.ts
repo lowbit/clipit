@@ -1,5 +1,5 @@
 import { autoUpdater } from 'electron-updater'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, app } from 'electron'
 
 export class UpdateService {
   private mainWindow: BrowserWindow | null = null
@@ -61,8 +61,8 @@ export class UpdateService {
 
   // Check for updates (call this on app startup)
   checkForUpdates() {
-    // Only check in production
-    if (process.env.NODE_ENV === 'development') {
+    // Only check in production (packaged app)
+    if (!app.isPackaged) {
       return
     }
 
