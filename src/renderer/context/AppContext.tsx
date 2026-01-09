@@ -26,6 +26,12 @@ interface AppContextType {
   refreshClips: () => Promise<void>
   goHome: () => void
 
+  // Navigation History
+  canGoBack: boolean
+  canGoForward: boolean
+  goBack: () => void
+  goForward: () => void
+
   // Filter & Sort
   filter: 'all' | 'video' | 'image'
   sort: 'date' | 'name' | 'size'
@@ -96,12 +102,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [toastId, setToastId] = useState(0)
 
+  // Navigation History
+  const [navHistory, setNavHistory] = useState<(string | null)[]>([null])
+  const [navIndex, setNavIndex] = useState(0)
+  const [isNavigating, setIsNavigating] = useState(false)
+
+  const canGoBack = navIndex > 0
+  const canGoForward = navIndex < navHistory.length - 1
+
+  const addToHistory = useCallback((location: string | null) => {
+    setNavHistory(prev => {
+      // Remove any forward history
+      const newHistory = prev.slice(0, navIndex + 1)
+      // Don't add if it's the same as current location
+      if (newHistory[newHistory.length - 1] === location) {
+        return prev
+      }
+      // Add new location
+      return [...newHistory, location]
+    })
+    setNavIndex(prev => prev + 1)
+  }, [navIndex])
+
+  const goBack = useCallback(() => {
+    if (canGoBack) {
+      setIsNavigating(true)
+      setNavIndex(prev => prev - 1)
+      const targetLocation = navHistory[navIndex - 1]
+      setSelectedGame(targetLocation)
+      setSelectedClip(null)
+      setClipInfo(null)
+      if (targetLocation) {
+        window.clipit.getClips(targetLocation).then(setClips)
+      } else {
+        setClips([])
+      }
+      setTimeout(() => setIsNavigating(false), 0)
+    }
+  }, [canGoBack, navHistory, navIndex])
+
+  const goForward = useCallback(() => {
+    if (canGoForward) {
+      setIsNavigating(true)
+      setNavIndex(prev => prev + 1)
+      const targetLocation = navHistory[navIndex + 1]
+      setSelectedGame(targetLocation)
+      setSelectedClip(null)
+      setClipInfo(null)
+      if (targetLocation) {
+        window.clipit.getClips(targetLocation).then(setClips)
+      } else {
+        setClips([])
+      }
+      setTimeout(() => setIsNavigating(false), 0)
+    }
+  }, [canGoForward, navHistory, navIndex])
+
   const goHome = useCallback(() => {
+    if (!isNavigating) {
+      addToHistory(null)
+    }
     setSelectedGame(null)
     setSelectedClip(null)
     setClipInfo(null)
     setClips([])
-  }, [])
+  }, [isNavigating, addToHistory])
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -219,6 +284,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const selectGame = useCallback(async (game: string | null) => {
+    if (!isNavigating) {
+      addToHistory(game)
+    }
     setSelectedGame(game)
     setSelectedClip(null)
     setClipInfo(null)
@@ -229,7 +297,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       setClips([])
     }
-  }, [])
+  }, [isNavigating, addToHistory])
 
   const selectClip = useCallback((clip: Clip | null) => {
     setSelectedClip(clip)
@@ -323,6 +391,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshGames,
     refreshClips,
     goHome,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     filter,
     sort,
     setFilter,

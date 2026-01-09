@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
-import { Home, Globe, Settings, Loader2, Folder, FolderOpen, Video, Image } from 'lucide-react'
+import { Home, Globe, Settings, Loader2, Folder, FolderOpen, Video, Image, MoreVertical, Eye, Trash2, Edit, Copy, ChevronLeft, ChevronRight, ChevronRight as Separator } from 'lucide-react'
+import type { Clip } from '../../shared/types'
 
 export default function Sidebar() {
   const {
@@ -15,8 +16,15 @@ export default function Sidebar() {
     sort,
     setSort,
     goHome,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     setShowSettings,
-    settings
+    settings,
+    refreshClips,
+    refreshGames,
+    addToast
   } = useApp()
 
   // Tunnel state
@@ -26,6 +34,12 @@ export default function Sidebar() {
     port: 0
   })
   const [tunnelLoading, setTunnelLoading] = useState(false)
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ clip: Clip; x: number; y: number } | null>(null)
+  const [renameClip, setRenameClip] = useState<Clip | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
   // Load tunnel info on mount and listen for updates
   useEffect(() => {
@@ -62,9 +76,119 @@ export default function Sidebar() {
     }
   }
 
-  // Handle Escape key for navigation
+  // Context menu handlers
+  const handleContextMenu = (e: React.MouseEvent, clip: Clip) => {
+    e.preventDefault()
+    setContextMenu({ clip, x: e.clientX, y: e.clientY })
+  }
+
+  const handleShowInExplorer = async () => {
+    if (!contextMenu) return
+    const result = await window.clipit.showInExplorer(contextMenu.clip.path)
+    if (!result.success) {
+      addToast(result.error || 'Failed to show in explorer', 'error')
+    }
+    setContextMenu(null)
+  }
+
+  const handleCopyPath = async () => {
+    if (!contextMenu) return
+    await window.clipit.copyToClipboard(contextMenu.clip.path)
+    addToast('Path copied to clipboard', 'success')
+    setContextMenu(null)
+  }
+
+  const handleRenameStart = () => {
+    if (!contextMenu) return
+    setRenameClip(contextMenu.clip)
+    setRenameValue(contextMenu.clip.name.replace(/\.[^.]+$/, ''))
+    setContextMenu(null)
+  }
+
+  const handleRenameSubmit = async () => {
+    if (!renameClip || !renameValue.trim()) return
+
+    const result = await window.clipit.renameFile(renameClip.path, renameValue.trim())
+    if (result.success) {
+      addToast('File renamed successfully', 'success')
+      await refreshClips()
+      await refreshGames()
+      // If renamed clip was selected, clear selection
+      if (selectedClip?.path === renameClip.path) {
+        selectClip(null)
+      }
+    } else {
+      addToast(result.error || 'Failed to rename file', 'error')
+    }
+    setRenameClip(null)
+    setRenameValue('')
+  }
+
+  const handleRenameCancel = () => {
+    setRenameClip(null)
+    setRenameValue('')
+  }
+
+  const handleDeleteFromContext = async () => {
+    if (!contextMenu) return
+    const clip = contextMenu.clip
+    setContextMenu(null)
+
+    if (!confirm(`Delete ${clip.name}?`)) return
+
+    const result = await window.clipit.deleteFile(clip.path)
+    if (result.success) {
+      addToast('File deleted', 'success')
+      if (selectedClip?.path === clip.path) {
+        selectClip(null)
+      }
+      await refreshClips()
+      await refreshGames()
+    } else {
+      addToast(result.error || 'Failed to delete file', 'error')
+    }
+  }
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null)
+    if (contextMenu) {
+      document.addEventListener('click', handleClick)
+      return () => document.removeEventListener('click', handleClick)
+    }
+  }, [contextMenu])
+
+  // Auto-focus rename input
+  useEffect(() => {
+    if (renameClip && renameInputRef.current) {
+      renameInputRef.current.focus()
+      renameInputRef.current.select()
+    }
+  }, [renameClip])
+
+  // Mouse button 4/5 support for back/forward navigation
+  useEffect(() => {
+    const handleMouseButton = (e: MouseEvent) => {
+      // Button 3 is MB4 (back), Button 4 is MB5 (forward)
+      if (e.button === 3) {
+        e.preventDefault()
+        goBack()
+      } else if (e.button === 4) {
+        e.preventDefault()
+        goForward()
+      }
+    }
+
+    window.addEventListener('mousedown', handleMouseButton)
+    return () => window.removeEventListener('mousedown', handleMouseButton)
+  }, [goBack, goForward])
+
+  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input
+      if (e.target instanceof HTMLInputElement) return
+
       if (e.key === 'Escape') {
         if (selectedClip) {
           selectClip(null)
@@ -72,11 +196,40 @@ export default function Sidebar() {
           selectGame(null)
         }
       }
+
+      // F2 - Rename selected clip
+      if (e.key === 'F2' && selectedClip && !renameClip) {
+        e.preventDefault()
+        setRenameClip(selectedClip)
+        setRenameValue(selectedClip.name.replace(/\.[^.]+$/, ''))
+      }
+
+      // Delete - Delete selected clip
+      if (e.key === 'Delete' && selectedClip && !renameClip) {
+        e.preventDefault()
+        handleDeleteSelected()
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedGame, selectedClip, selectGame, selectClip])
+  }, [selectedGame, selectedClip, selectGame, selectClip, renameClip])
+
+  const handleDeleteSelected = async () => {
+    if (!selectedClip) return
+
+    if (!confirm(`Delete ${selectedClip.name}?`)) return
+
+    const result = await window.clipit.deleteFile(selectedClip.path)
+    if (result.success) {
+      addToast('File deleted', 'success')
+      selectClip(null)
+      await refreshClips()
+      await refreshGames()
+    } else {
+      addToast(result.error || 'Failed to delete file', 'error')
+    }
+  }
 
   return (
     <div className="sidebar">
@@ -98,6 +251,41 @@ export default function Sidebar() {
             <>
               <div className="sidebar-title">Clipit</div>
               <div className="sidebar-subtitle">{games.length} games</div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Breadcrumb Navigation */}
+      <div className="breadcrumb-bar">
+        <div className="breadcrumb-nav-buttons">
+          <button
+            className="breadcrumb-nav-btn"
+            onClick={goBack}
+            disabled={!canGoBack}
+            title="Go Back"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            className="breadcrumb-nav-btn"
+            onClick={goForward}
+            disabled={!canGoForward}
+            title="Go Forward"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        <div className="breadcrumb-path">
+          <button className="breadcrumb-item breadcrumb-home" onClick={goHome}>
+            <span>Home</span>
+          </button>
+          {selectedGame && (
+            <>
+              <Separator size={12} className="breadcrumb-separator" />
+              <span className="breadcrumb-item breadcrumb-current">
+                <span>{selectedGame}</span>
+              </span>
             </>
           )}
         </div>
@@ -143,39 +331,63 @@ export default function Sidebar() {
       <div className="sidebar-content">
         {selectedGame ? (
           // Show clips for selected game
-          filteredClips.map((clip) => (
-            <div
-              key={clip.path}
-              className={`list-item ${selectedClip?.path === clip.path ? 'selected' : ''}`}
-              onClick={() => selectClip(clip)}
-            >
-              <div className="list-item-thumb-container">
-                <img
-                  src={window.clipit.getThumbnailUrl(clip.path)}
-                  alt=""
-                  className="list-item-thumb"
-                  loading="lazy"
-                  onError={(e) => {
-                    // Hide broken thumbnails
-                    (e.target as HTMLImageElement).style.visibility = 'hidden'
-                  }}
-                />
-                <div className="list-item-type-badge">
-                  {clip.type === 'video' ? (
-                    <Video size={12} />
+          filteredClips.map((clip) => {
+            const isRenaming = renameClip?.path === clip.path
+            return (
+              <div
+                key={clip.path}
+                className={`list-item ${selectedClip?.path === clip.path ? 'selected' : ''} ${isRenaming ? 'renaming' : ''}`}
+                onClick={() => !isRenaming && selectClip(clip)}
+                onContextMenu={(e) => !isRenaming && handleContextMenu(e, clip)}
+              >
+                <div className="list-item-thumb-container">
+                  <img
+                    src={window.clipit.getThumbnailUrl(clip.path)}
+                    alt=""
+                    className="list-item-thumb"
+                    loading="lazy"
+                    onError={(e) => {
+                      // Hide broken thumbnails
+                      (e.target as HTMLImageElement).style.visibility = 'hidden'
+                    }}
+                  />
+                  <div className="list-item-type-badge">
+                    {clip.type === 'video' ? (
+                      <Video size={12} />
+                    ) : (
+                      <Image size={12} />
+                    )}
+                  </div>
+                </div>
+                <div className="list-item-info">
+                  {isRenaming ? (
+                    <div className="list-item-rename">
+                      <input
+                        ref={renameInputRef}
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRenameSubmit()
+                          if (e.key === 'Escape') handleRenameCancel()
+                        }}
+                        onBlur={handleRenameCancel}
+                        className="rename-input"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
                   ) : (
-                    <Image size={12} />
+                    <>
+                      <div className="list-item-name">{clip.name}</div>
+                      <div className="list-item-meta">
+                        {clip.sizeMb} MB • {clip.modifiedStr}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
-              <div className="list-item-info">
-                <div className="list-item-name">{clip.name}</div>
-                <div className="list-item-meta">
-                  {clip.sizeMb} MB • {clip.modifiedStr}
-                </div>
-              </div>
-            </div>
-          ))
+            )
+          })
         ) : (
           // Show games list
           games.map((game) => (
@@ -312,6 +524,38 @@ export default function Sidebar() {
           <span className="sidebar-footer-settings-text">Settings</span>
         </button>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 1000
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button className="context-menu-item" onClick={handleShowInExplorer}>
+            <Eye size={16} />
+            <span>Show in Explorer</span>
+          </button>
+          <button className="context-menu-item" onClick={handleRenameStart}>
+            <Edit size={16} />
+            <span>Rename</span>
+          </button>
+          <button className="context-menu-item" onClick={handleCopyPath}>
+            <Copy size={16} />
+            <span>Copy Path</span>
+          </button>
+          <div className="context-menu-divider" />
+          <button className="context-menu-item context-menu-item-danger" onClick={handleDeleteFromContext}>
+            <Trash2 size={16} />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

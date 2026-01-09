@@ -35,6 +35,12 @@ contextBridge.exposeInMainWorld('clipit', {
   deleteFile: (path: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('clipit:file:delete', { path }),
 
+  renameFile: (path: string, newName: string): Promise<{ success: boolean; error?: string; newPath?: string }> =>
+    ipcRenderer.invoke('clipit:file:rename', { path, newName }),
+
+  showInExplorer: (path: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('clipit:file:show-in-explorer', { path }),
+
   getSettings: (): Promise<Settings> =>
     ipcRenderer.invoke('clipit:settings:get'),
 
@@ -128,6 +134,8 @@ declare global {
       trim: (path: string, start: number, end: number, saveAsCopy?: boolean) => Promise<TrimResult>
       share: (request: ShareRequest) => Promise<ShareResult>
       deleteFile: (path: string) => Promise<{ success: boolean; error?: string }>
+      renameFile: (path: string, newName: string) => Promise<{ success: boolean; error?: string; newPath?: string }>
+      showInExplorer: (path: string) => Promise<{ success: boolean; error?: string }>
       getSettings: () => Promise<Settings>
       setSettings: (settings: Partial<Settings>) => Promise<{ success: boolean }>
       pickDirectory: (title: string) => Promise<string | null>

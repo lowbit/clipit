@@ -3,7 +3,7 @@ import { settingsStore } from '../store/SettingsStore'
 import { getGames, getClips, getClipInfo } from '../services/MediaService'
 import { trimVideo } from '../services/TrimService'
 import { shareMedia } from '../services/ShareService'
-import { deleteFile } from '../services/FileService'
+import { deleteFile, renameFile, showInExplorer } from '../services/FileService'
 import { detectAvailableEncoders } from '../services/FFmpegService'
 import { tunnelService } from '../services/TunnelService'
 import { updateService } from '../services/UpdateService'
@@ -36,6 +36,14 @@ export function registerIpcHandlers() {
   // File operations
   ipcMain.handle('clipit:file:delete', async (_, args: { path: string }) => {
     return deleteFile(args.path)
+  })
+
+  ipcMain.handle('clipit:file:rename', async (_, args: { path: string; newName: string }) => {
+    return renameFile(args.path, args.newName)
+  })
+
+  ipcMain.handle('clipit:file:show-in-explorer', async (_, args: { path: string }) => {
+    return showInExplorer(args.path)
   })
 
   // Settings operations

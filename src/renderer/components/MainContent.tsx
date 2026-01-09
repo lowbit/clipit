@@ -287,6 +287,9 @@ export default function MainContent() {
             )}
             {!isVideoLoading && (
               <>
+                <div className="video-hover-overlay">
+                  {isPlaying ? <Pause size={80} /> : <Play size={80} />}
+                </div>
                 <div className="playback-time-overlay">
                   {formatTime(currentTime)} / {formatTime(duration)}
                 </div>
