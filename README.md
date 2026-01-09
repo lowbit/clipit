@@ -2,6 +2,16 @@
 
 Desktop app for managing and sharing game clips. Organize recordings by game, trim videos, re-encode with hardware acceleration, and share via temporary public links.
 
+<p align="center">
+  <img src="screenshots/1-welcome-setup.png" width="49%" />
+  <img src="screenshots/2-settings.png" width="49%" />
+</p>
+
+<p align="center">
+  <img src="screenshots/3-trim-mode.png" width="49%" />
+  <img src="screenshots/4-share.png" width="49%" />
+</p>
+
 ## Features
 
 - Browse recordings organized by game title
@@ -13,9 +23,9 @@ Desktop app for managing and sharing game clips. Organize recordings by game, tr
 
 ## Installation
 
-Download the latest release for your platform:
+**[Download the latest release](https://github.com/lowbit/clipit/releases)** for your platform:
 
-**Windows:** Run `Clipit Setup X.X.X.exe`
+**Windows:** Run `Clipit-Setup-X.X.X.exe`
 **Linux (AppImage):** `chmod +x Clipit-X.X.X.AppImage && ./Clipit-X.X.X.AppImage`
 **Linux (DEB):** `sudo dpkg -i clipit_X.X.X_amd64.deb`
 
