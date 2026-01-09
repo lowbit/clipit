@@ -46,6 +46,24 @@ npm run build:linux    # Linux only
 
 Builds are output to `release/` directory.
 
+## Release Procedure
+
+1. **Update version** in `package.json`
+2. **Build** for all platforms:
+   ```bash
+   npm run build:win
+   npm run build:linux
+   ```
+3. **Create GitHub release** at https://github.com/lowbit/clipit/releases
+   - Tag: `vX.X.X` (e.g., `v1.0.1`)
+   - Upload files from `release/`:
+     - `Clipit-Setup-X.X.X.exe`
+     - `Clipit-X.X.X.AppImage`
+     - `clipit_X.X.X_amd64.deb`
+     - `latest.yml`
+     - `latest-linux.yml`
+4. **Publish** - Auto-updater will detect new version
+
 ## Tech Stack
 
 - Electron + React + TypeScript
