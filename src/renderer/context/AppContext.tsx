@@ -72,6 +72,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Settings
   const [settings, setSettings] = useState<Settings | null>(null)
   const [isConfigured, setIsConfigured] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
 
   // Games & Clips
   const [games, setGames] = useState<Game[]>([])
@@ -184,6 +185,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const loadedGames = await window.clipit.getGames()
         setGames(loadedGames)
       }
+
+      setIsInitializing(false)
     }
 
     loadInitialData()
@@ -418,6 +421,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toasts,
     addToast,
     removeToast
+  }
+
+  // Don't render anything until we've checked if the app is configured
+  if (isInitializing) {
+    return null
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
