@@ -58,21 +58,41 @@ Builds are output to `release/` directory.
 
 ## Release Procedure
 
-1. **Update version** in `package.json`
-2. **Build** for all platforms:
-   ```bash
-   npm run build:win
-   npm run build:linux
-   ```
-3. **Create GitHub release** at https://github.com/lowbit/clipit/releases
-   - Tag: `vX.X.X` (e.g., `v1.0.1`)
-   - Upload files from `release/`:
-     - `Clipit-Setup-X.X.X.exe`
-     - `Clipit-X.X.X.AppImage`
-     - `clipit_X.X.X_amd64.deb`
-     - `latest.yml`
-     - `latest-linux.yml`
-4. **Publish** - Auto-updater will detect new version
+```bash
+# Bump version (patch/minor/major)
+npm version minor
+
+# Set token if not permanent
+$env:GH_TOKEN="ghp_your_token"
+
+# Build and publish to GitHub
+npm run publish:win
+
+# Push changes
+git push && git push --tags
+```
+
+This automatically uploads:
+- `Clipit-Setup-X.X.X.exe`
+- `Clipit-Setup-X.X.X.exe.blockmap` (for differential updates)
+- `latest.yml`
+
+The auto-updater will detect the new version.
+
+### GitHub Token Setup
+
+**Temporary (current session only):**
+```powershell
+$env:GH_TOKEN="ghp_your_github_token"
+```
+
+**Permanent (survives restarts):**
+1. Press `Win + R`, type `sysdm.cpl`
+2. Environment Variables → New User Variable
+3. Name: `GH_TOKEN`, Value: `ghp_your_token`
+4. Restart terminal
+
+Get token at: https://github.com/settings/tokens (requires `repo` scope)
 
 ## Tech Stack
 
