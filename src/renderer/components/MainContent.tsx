@@ -293,7 +293,15 @@ export default function MainContent() {
                 <div className="playback-time-overlay">
                   {formatTime(currentTime)} / {formatTime(duration)}
                 </div>
-                <div className="mute-indicator" title={isMuted ? 'Audio Muted (M to unmute)' : 'Audio On (M to mute)'}>
+                <div
+                  className="mute-indicator"
+                  title={isMuted ? 'Audio Muted (Click or M to unmute)' : 'Audio On (Click or M to mute)'}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleToggleMute()
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                 </div>
               </>

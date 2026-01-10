@@ -71,6 +71,9 @@ contextBridge.exposeInMainWorld('clipit', {
   isConfigured: (): Promise<boolean> =>
     ipcRenderer.invoke('clipit:app:is-configured'),
 
+  getAppVersion: (): Promise<string> =>
+    ipcRenderer.invoke('clipit:app:get-version'),
+
   getPlatform: (): string => process.platform,
 
   onOpenSettings: (callback: () => void) => {
@@ -146,6 +149,7 @@ declare global {
       copyToClipboard: (text: string) => Promise<void>
       openExternal: (url: string) => Promise<void>
       isConfigured: () => Promise<boolean>
+      getAppVersion: () => Promise<string>
       getPlatform: () => string
       onOpenSettings: (callback: () => void) => () => void
       onGoHome: (callback: () => void) => () => void

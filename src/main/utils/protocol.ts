@@ -1,6 +1,7 @@
 import { protocol } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import { Readable } from 'stream'
 import { getThumbnail } from '../services/ThumbnailService'
 
 /**
@@ -83,13 +84,13 @@ export function registerProtocols() {
 
       const length = end - start + 1
 
-      // Stream the requested chunk
-      const buffer = Buffer.alloc(length)
-      const fd = fs.openSync(filePath, 'r')
-      fs.readSync(fd, buffer, 0, length, start)
-      fs.closeSync(fd)
+      // Create a read stream for the requested byte range
+      const nodeStream = fs.createReadStream(filePath, { start, end })
 
-      return new Response(buffer, {
+      // Convert Node.js stream to Web ReadableStream
+      const webStream = Readable.toWeb(nodeStream) as ReadableStream
+
+      return new Response(webStream, {
         status: rangeHeader ? 206 : 200,
         headers: {
           'Content-Range': `bytes ${start}-${end}/${fileSize}`,
@@ -99,6 +100,7 @@ export function registerProtocols() {
         }
       })
     } catch (error) {
+      console.error('[clipit-video] Error streaming video:', error)
       return new Response('Internal server error', { status: 500 })
     }
   })

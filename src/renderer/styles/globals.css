@@ -297,6 +297,8 @@ body {
   display: flex;
   gap: 12px;
   align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .list-item:hover {
@@ -657,8 +659,9 @@ body {
   padding: 8px;
   border-radius: 4px;
   backdrop-filter: blur(4px);
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 10;
+  transition: background 0.2s, transform 0.1s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -668,6 +671,12 @@ body {
 
 .mute-indicator:hover {
   opacity: 1;
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.05);
+}
+
+.mute-indicator:active {
+  transform: scale(0.95);
 }
 
 /* Video hover play/pause overlay */
@@ -1326,10 +1335,26 @@ body {
   color: var(--accent);
 }
 
+.sidebar-footer-settings-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
 .sidebar-footer-settings-text {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
+}
+
+.sidebar-footer-settings-version {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  font-weight: 400;
+  margin-left: auto;
 }
 
 /* Tunnel Notice Modal */
@@ -1448,6 +1473,14 @@ body {
   height: 1px;
   background: var(--border);
   margin: 4px 8px;
+}
+
+.context-menu-header {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 /* Rename Input */

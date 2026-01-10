@@ -1,4 +1,4 @@
-import { ipcMain, dialog, clipboard, shell } from 'electron'
+import { ipcMain, dialog, clipboard, shell, app } from 'electron'
 import { settingsStore } from '../store/SettingsStore'
 import { getGames, getClips, getClipInfo } from '../services/MediaService'
 import { trimVideo } from '../services/TrimService'
@@ -96,6 +96,10 @@ export function registerIpcHandlers() {
   // App state
   ipcMain.handle('clipit:app:is-configured', async () => {
     return settingsStore.isConfigured()
+  })
+
+  ipcMain.handle('clipit:app:get-version', () => {
+    return app.getVersion()
   })
 
   // Tunnel operations

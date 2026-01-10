@@ -19,9 +19,12 @@ interface AppContextType {
   clips: Clip[]
   selectedGame: string | null
   selectedClip: Clip | null
+  selectedClips: Clip[]
   clipInfo: ClipInfo | null
   selectGame: (game: string | null) => void
-  selectClip: (clip: Clip | null) => void
+  selectClip: (clip: Clip | null, isMulti?: boolean, isRange?: boolean) => void
+  selectAllClips: () => void
+  clearSelection: () => void
   refreshGames: () => Promise<void>
   refreshClips: () => Promise<void>
   goHome: () => void
@@ -79,6 +82,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [clips, setClips] = useState<Clip[]>([])
   const [selectedGame, setSelectedGame] = useState<string | null>(null)
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null)
+  const [selectedClips, setSelectedClips] = useState<Clip[]>([])
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number>(-1)
   const [clipInfo, setClipInfo] = useState<ClipInfo | null>(null)
 
   // Filter & Sort
@@ -125,48 +130,70 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNavIndex(prev => prev + 1)
   }, [navIndex])
 
-  const goBack = useCallback(() => {
+  const goBack = useCallback(async () => {
     if (canGoBack) {
       setIsNavigating(true)
       setNavIndex(prev => prev - 1)
       const targetLocation = navHistory[navIndex - 1]
       setSelectedGame(targetLocation)
       setSelectedClip(null)
+      setSelectedClips([])
+      setLastSelectedIndex(-1)
       setClipInfo(null)
       if (targetLocation) {
-        window.clipit.getClips(targetLocation).then(setClips)
+        const loadedClips = await window.clipit.getClips(targetLocation)
+        setClips(loadedClips)
       } else {
         setClips([])
       }
+
+      // Refresh games to update folder counts
+      const loadedGames = await window.clipit.getGames()
+      setGames(loadedGames)
+
       setTimeout(() => setIsNavigating(false), 0)
     }
   }, [canGoBack, navHistory, navIndex])
 
-  const goForward = useCallback(() => {
+  const goForward = useCallback(async () => {
     if (canGoForward) {
       setIsNavigating(true)
       setNavIndex(prev => prev + 1)
       const targetLocation = navHistory[navIndex + 1]
       setSelectedGame(targetLocation)
       setSelectedClip(null)
+      setSelectedClips([])
+      setLastSelectedIndex(-1)
       setClipInfo(null)
       if (targetLocation) {
-        window.clipit.getClips(targetLocation).then(setClips)
+        const loadedClips = await window.clipit.getClips(targetLocation)
+        setClips(loadedClips)
       } else {
         setClips([])
       }
+
+      // Refresh games to update folder counts
+      const loadedGames = await window.clipit.getGames()
+      setGames(loadedGames)
+
       setTimeout(() => setIsNavigating(false), 0)
     }
   }, [canGoForward, navHistory, navIndex])
 
-  const goHome = useCallback(() => {
+  const goHome = useCallback(async () => {
     if (!isNavigating) {
       addToHistory(null)
     }
     setSelectedGame(null)
     setSelectedClip(null)
+    setSelectedClips([])
+    setLastSelectedIndex(-1)
     setClipInfo(null)
     setClips([])
+
+    // Refresh games when going home
+    const loadedGames = await window.clipit.getGames()
+    setGames(loadedGames)
   }, [isNavigating, addToHistory])
 
   useEffect(() => {
@@ -292,6 +319,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     setSelectedGame(game)
     setSelectedClip(null)
+    setSelectedClips([])
+    setLastSelectedIndex(-1)
     setClipInfo(null)
 
     if (game) {
@@ -300,29 +329,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       setClips([])
     }
-  }, [isNavigating, addToHistory])
 
-  const selectClip = useCallback((clip: Clip | null) => {
-    setSelectedClip(clip)
-  }, [])
-
-  const refreshGames = useCallback(async () => {
+    // Refresh games to update folder counts
     const loadedGames = await window.clipit.getGames()
     setGames(loadedGames)
-  }, [])
+  }, [isNavigating, addToHistory])
 
-  const refreshClips = useCallback(async () => {
-    if (selectedGame) {
-      const loadedClips = await window.clipit.getClips(selectedGame)
-      setClips(loadedClips)
-    }
-  }, [selectedGame])
-
-  const detectEncoders = useCallback(async () => {
-    const detected = await window.clipit.detectEncoders()
-    setEncoders(detected)
-  }, [])
-
+  // Filtered and sorted clips
   const filteredClips = useMemo(() => {
     let result = [...clips]
 
@@ -344,6 +357,94 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return result
   }, [clips, filter, sort])
+
+  const selectClip = useCallback((clip: Clip | null, isMulti = false, isRange = false) => {
+    if (!clip) {
+      // Clear all selection
+      setSelectedClip(null)
+      setSelectedClips([])
+      setLastSelectedIndex(-1)
+      return
+    }
+
+    // Compute filtered clips inline
+    let currentFilteredClips = [...clips]
+    if (filter !== 'all') {
+      currentFilteredClips = currentFilteredClips.filter(c => c.type === filter)
+    }
+    switch (sort) {
+      case 'date':
+        currentFilteredClips.sort((a, b) => b.modified - a.modified)
+        break
+      case 'name':
+        currentFilteredClips.sort((a, b) => a.name.localeCompare(b.name))
+        break
+      case 'size':
+        currentFilteredClips.sort((a, b) => b.sizeMb - a.sizeMb)
+        break
+    }
+
+    const clipIndex = currentFilteredClips.findIndex(c => c.path === clip.path)
+
+    if (isRange && lastSelectedIndex !== -1 && clipIndex !== -1) {
+      // Range selection with Shift
+      const start = Math.min(lastSelectedIndex, clipIndex)
+      const end = Math.max(lastSelectedIndex, clipIndex)
+      const rangeClips = currentFilteredClips.slice(start, end + 1)
+      setSelectedClips(rangeClips)
+      setSelectedClip(clip)
+    } else if (isMulti) {
+      // Multi selection with Ctrl
+      const isAlreadySelected = selectedClips.some(c => c.path === clip.path)
+      if (isAlreadySelected) {
+        // Remove from selection
+        const newSelection = selectedClips.filter(c => c.path !== clip.path)
+        setSelectedClips(newSelection)
+        setSelectedClip(newSelection.length > 0 ? newSelection[newSelection.length - 1] : null)
+      } else {
+        // Add to selection
+        setSelectedClips([...selectedClips, clip])
+        setSelectedClip(clip)
+      }
+      setLastSelectedIndex(clipIndex)
+    } else {
+      // Single selection
+      setSelectedClip(clip)
+      setSelectedClips([clip])
+      setLastSelectedIndex(clipIndex)
+    }
+  }, [clips, filter, sort, lastSelectedIndex, selectedClips])
+
+  const selectAllClips = useCallback(() => {
+    setSelectedClips(filteredClips)
+    if (filteredClips.length > 0) {
+      setSelectedClip(filteredClips[filteredClips.length - 1])
+      setLastSelectedIndex(filteredClips.length - 1)
+    }
+  }, [filteredClips])
+
+  const clearSelection = useCallback(() => {
+    setSelectedClip(null)
+    setSelectedClips([])
+    setLastSelectedIndex(-1)
+  }, [])
+
+  const refreshGames = useCallback(async () => {
+    const loadedGames = await window.clipit.getGames()
+    setGames(loadedGames)
+  }, [])
+
+  const refreshClips = useCallback(async () => {
+    if (selectedGame) {
+      const loadedClips = await window.clipit.getClips(selectedGame)
+      setClips(loadedClips)
+    }
+  }, [selectedGame])
+
+  const detectEncoders = useCallback(async () => {
+    const detected = await window.clipit.detectEncoders()
+    setEncoders(detected)
+  }, [])
 
   const setLoading = useCallback((isLoading: boolean, text?: string) => {
     setLoadingState(isLoading)
@@ -388,9 +489,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clips,
     selectedGame,
     selectedClip,
+    selectedClips,
     clipInfo,
     selectGame,
     selectClip,
+    selectAllClips,
+    clearSelection,
     refreshGames,
     refreshClips,
     goHome,

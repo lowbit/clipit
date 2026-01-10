@@ -1,4 +1,5 @@
 import { Download, X, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
 
 interface UpdateBannerProps {
   status: 'available' | 'downloading' | 'ready'
@@ -17,6 +18,8 @@ export default function UpdateBanner({
   onInstall,
   onDismiss
 }: UpdateBannerProps) {
+  const [isDownloadClicked, setIsDownloadClicked] = useState(false)
+  const [isInstallClicked, setIsInstallClicked] = useState(false)
   return (
     <div style={{
       position: 'fixed',
@@ -89,19 +92,24 @@ export default function UpdateBanner({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {status === 'available' && (
           <button
-            onClick={onDownload}
+            onClick={() => {
+              setIsDownloadClicked(true)
+              onDownload()
+            }}
+            disabled={isDownloadClicked}
             style={{
-              backgroundColor: 'white',
-              color: '#2563eb',
+              backgroundColor: isDownloadClicked ? '#e5e7eb' : 'white',
+              color: isDownloadClicked ? '#9ca3af' : '#2563eb',
               border: 'none',
               borderRadius: '6px',
               padding: '6px 16px',
               fontSize: '14px',
               fontWeight: '600',
-              cursor: 'pointer',
+              cursor: isDownloadClicked ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '6px',
+              opacity: isDownloadClicked ? 0.6 : 1
             }}
           >
             <Download size={16} />
@@ -111,19 +119,24 @@ export default function UpdateBanner({
 
         {status === 'ready' && (
           <button
-            onClick={onInstall}
+            onClick={() => {
+              setIsInstallClicked(true)
+              onInstall()
+            }}
+            disabled={isInstallClicked}
             style={{
-              backgroundColor: 'white',
-              color: '#2563eb',
+              backgroundColor: isInstallClicked ? '#e5e7eb' : 'white',
+              color: isInstallClicked ? '#9ca3af' : '#2563eb',
               border: 'none',
               borderRadius: '6px',
               padding: '6px 16px',
               fontSize: '14px',
               fontWeight: '600',
-              cursor: 'pointer',
+              cursor: isInstallClicked ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '6px',
+              opacity: isInstallClicked ? 0.6 : 1
             }}
           >
             <RefreshCw size={16} />

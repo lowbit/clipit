@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
-import { Home, Globe, Settings, Loader2, Folder, FolderOpen, Video, Image, MoreVertical, Eye, Trash2, Edit, Copy, ChevronLeft, ChevronRight, ChevronRight as Separator } from 'lucide-react'
+import { Home, Globe, Settings, Loader2, Folder, FolderOpen, Video, Image, MoreVertical, Eye, Trash2, Edit, Copy, ChevronLeft, ChevronRight, ChevronRight as Separator, RefreshCw } from 'lucide-react'
 import type { Clip } from '../../shared/types'
 
 export default function Sidebar() {
@@ -10,7 +10,10 @@ export default function Sidebar() {
     selectGame,
     filteredClips,
     selectedClip,
+    selectedClips,
     selectClip,
+    selectAllClips,
+    clearSelection,
     filter,
     setFilter,
     sort,
@@ -34,6 +37,7 @@ export default function Sidebar() {
     port: 0
   })
   const [tunnelLoading, setTunnelLoading] = useState(false)
+  const [appVersion, setAppVersion] = useState<string>('')
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ clip: Clip; x: number; y: number } | null>(null)
@@ -41,13 +45,22 @@ export default function Sidebar() {
   const [renameValue, setRenameValue] = useState('')
   const renameInputRef = useRef<HTMLInputElement>(null)
 
-  // Load tunnel info on mount and listen for updates
+  // Refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Load tunnel info and app version on mount
   useEffect(() => {
     const loadTunnelInfo = async () => {
       const info = await window.clipit.getTunnelInfo()
       setTunnelInfo(info)
     }
     loadTunnelInfo()
+
+    const loadAppVersion = async () => {
+      const version = await window.clipit.getAppVersion()
+      setAppVersion(version)
+    }
+    loadAppVersion()
 
     // Listen for tunnel state changes from other components
     const handleTunnelUpdate = () => {
@@ -79,6 +92,11 @@ export default function Sidebar() {
   // Context menu handlers
   const handleContextMenu = (e: React.MouseEvent, clip: Clip) => {
     e.preventDefault()
+    // If right-clicked clip is not in selection, select only it
+    const isInSelection = selectedClips.some(c => c.path === clip.path)
+    if (!isInSelection) {
+      selectClip(clip)
+    }
     setContextMenu({ clip, x: e.clientX, y: e.clientY })
   }
 
@@ -131,21 +149,33 @@ export default function Sidebar() {
 
   const handleDeleteFromContext = async () => {
     if (!contextMenu) return
-    const clip = contextMenu.clip
     setContextMenu(null)
 
-    if (!confirm(`Delete ${clip.name}?`)) return
+    const filesToDelete = selectedClips.length > 1 ? selectedClips : [contextMenu.clip]
+    const fileNames = filesToDelete.length === 1
+      ? filesToDelete[0].name
+      : `${filesToDelete.length} files`
 
-    const result = await window.clipit.deleteFile(clip.path)
-    if (result.success) {
-      addToast('File deleted', 'success')
-      if (selectedClip?.path === clip.path) {
-        selectClip(null)
+    if (!confirm(`Delete ${fileNames}?`)) return
+
+    let successCount = 0
+    let errorCount = 0
+
+    for (const clip of filesToDelete) {
+      const result = await window.clipit.deleteFile(clip.path)
+      if (result.success) {
+        successCount++
+      } else {
+        errorCount++
+        addToast(result.error || `Failed to delete ${clip.name}`, 'error')
       }
+    }
+
+    if (successCount > 0) {
+      addToast(`${successCount} file${successCount > 1 ? 's' : ''} deleted`, 'success')
+      clearSelection()
       await refreshClips()
       await refreshGames()
-    } else {
-      addToast(result.error || 'Failed to delete file', 'error')
     }
   }
 
@@ -165,6 +195,36 @@ export default function Sidebar() {
       renameInputRef.current.select()
     }
   }, [renameClip])
+
+  const handleDeleteSelected = async () => {
+    if (selectedClips.length === 0) return
+
+    const fileNames = selectedClips.length === 1
+      ? selectedClips[0].name
+      : `${selectedClips.length} files`
+
+    if (!confirm(`Delete ${fileNames}?`)) return
+
+    let successCount = 0
+    let errorCount = 0
+
+    for (const clip of selectedClips) {
+      const result = await window.clipit.deleteFile(clip.path)
+      if (result.success) {
+        successCount++
+      } else {
+        errorCount++
+        addToast(result.error || `Failed to delete ${clip.name}`, 'error')
+      }
+    }
+
+    if (successCount > 0) {
+      addToast(`${successCount} file${successCount > 1 ? 's' : ''} deleted`, 'success')
+      clearSelection()
+      await refreshClips()
+      await refreshGames()
+    }
+  }
 
   // Mouse button 4/5 support for back/forward navigation
   useEffect(() => {
@@ -190,22 +250,28 @@ export default function Sidebar() {
       if (e.target instanceof HTMLInputElement) return
 
       if (e.key === 'Escape') {
-        if (selectedClip) {
-          selectClip(null)
+        if (selectedClips.length > 0) {
+          clearSelection()
         } else if (selectedGame) {
           selectGame(null)
         }
       }
 
-      // F2 - Rename selected clip
-      if (e.key === 'F2' && selectedClip && !renameClip) {
+      // Ctrl+A - Select all clips
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && selectedGame) {
         e.preventDefault()
-        setRenameClip(selectedClip)
-        setRenameValue(selectedClip.name.replace(/\.[^.]+$/, ''))
+        selectAllClips()
       }
 
-      // Delete - Delete selected clip
-      if (e.key === 'Delete' && selectedClip && !renameClip) {
+      // F2 - Rename selected clip (only works for single selection)
+      if (e.key === 'F2' && selectedClips.length === 1 && !renameClip) {
+        e.preventDefault()
+        setRenameClip(selectedClips[0])
+        setRenameValue(selectedClips[0].name.replace(/\.[^.]+$/, ''))
+      }
+
+      // Delete - Delete selected clips
+      if (e.key === 'Delete' && selectedClips.length > 0 && !renameClip) {
         e.preventDefault()
         handleDeleteSelected()
       }
@@ -213,22 +279,18 @@ export default function Sidebar() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedGame, selectedClip, selectGame, selectClip, renameClip])
+  }, [selectedGame, selectedClips, selectGame, selectAllClips, clearSelection, renameClip, handleDeleteSelected])
 
-  const handleDeleteSelected = async () => {
-    if (!selectedClip) return
-
-    if (!confirm(`Delete ${selectedClip.name}?`)) return
-
-    const result = await window.clipit.deleteFile(selectedClip.path)
-    if (result.success) {
-      addToast('File deleted', 'success')
-      selectClip(null)
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    if (selectedGame) {
       await refreshClips()
       await refreshGames()
     } else {
-      addToast(result.error || 'Failed to delete file', 'error')
+      await refreshGames()
     }
+    // Keep spinning for at least 500ms for visual feedback
+    setTimeout(() => setIsRefreshing(false), 500)
   }
 
   return (
@@ -289,6 +351,17 @@ export default function Sidebar() {
             </>
           )}
         </div>
+        {!selectedGame && (
+          <button
+            className="breadcrumb-nav-btn"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh folders"
+            style={{ marginLeft: 'auto' }}
+          >
+            <RefreshCw size={16} style={isRefreshing ? { animation: 'spin 0.6s linear infinite' } : {}} />
+          </button>
+        )}
       </div>
 
       {selectedGame && (
@@ -328,16 +401,30 @@ export default function Sidebar() {
         </>
       )}
 
-      <div className="sidebar-content">
+      <div
+        className="sidebar-content"
+        onClick={(e) => {
+          // Clear selection when clicking empty space
+          if (e.target === e.currentTarget) {
+            clearSelection()
+          }
+        }}
+      >
         {selectedGame ? (
           // Show clips for selected game
           filteredClips.map((clip) => {
             const isRenaming = renameClip?.path === clip.path
+            const isSelected = selectedClips.some(c => c.path === clip.path)
             return (
               <div
                 key={clip.path}
-                className={`list-item ${selectedClip?.path === clip.path ? 'selected' : ''} ${isRenaming ? 'renaming' : ''}`}
-                onClick={() => !isRenaming && selectClip(clip)}
+                className={`list-item ${isSelected ? 'selected' : ''} ${isRenaming ? 'renaming' : ''}`}
+                onClick={(e) => {
+                  if (isRenaming) return
+                  const isCtrl = e.ctrlKey || e.metaKey
+                  const isShift = e.shiftKey
+                  selectClip(clip, isCtrl, isShift)
+                }}
                 onContextMenu={(e) => !isRenaming && handleContextMenu(e, clip)}
               >
                 <div className="list-item-thumb-container">
@@ -521,7 +608,10 @@ export default function Sidebar() {
           <span className="sidebar-footer-settings-icon">
             <Settings size={18} />
           </span>
-          <span className="sidebar-footer-settings-text">Settings</span>
+          <span className="sidebar-footer-settings-content">
+            <span className="sidebar-footer-settings-text">Settings</span>
+            {appVersion && <span className="sidebar-footer-settings-version">v{appVersion}</span>}
+          </span>
         </button>
       </div>
 
@@ -537,22 +627,42 @@ export default function Sidebar() {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button className="context-menu-item" onClick={handleShowInExplorer}>
-            <Eye size={16} />
-            <span>Show in Explorer</span>
-          </button>
-          <button className="context-menu-item" onClick={handleRenameStart}>
-            <Edit size={16} />
-            <span>Rename</span>
-          </button>
-          <button className="context-menu-item" onClick={handleCopyPath}>
-            <Copy size={16} />
-            <span>Copy Path</span>
+          {selectedClips.length > 1 && (
+            <>
+              <div className="context-menu-header">
+                {selectedClips.length} files selected
+              </div>
+              <div className="context-menu-divider" />
+            </>
+          )}
+          {selectedClips.length === 1 && (
+            <>
+              <button className="context-menu-item" onClick={handleShowInExplorer}>
+                <Eye size={16} />
+                <span>Show in Explorer</span>
+              </button>
+              <button className="context-menu-item" onClick={handleRenameStart}>
+                <Edit size={16} />
+                <span>Rename</span>
+              </button>
+              <button className="context-menu-item" onClick={handleCopyPath}>
+                <Copy size={16} />
+                <span>Copy Path</span>
+              </button>
+              <div className="context-menu-divider" />
+            </>
+          )}
+          <button className="context-menu-item" onClick={async () => {
+            setContextMenu(null)
+            await handleRefresh()
+          }}>
+            <RefreshCw size={16} />
+            <span>Refresh</span>
           </button>
           <div className="context-menu-divider" />
           <button className="context-menu-item context-menu-item-danger" onClick={handleDeleteFromContext}>
             <Trash2 size={16} />
-            <span>Delete</span>
+            <span>Delete{selectedClips.length > 1 ? ` (${selectedClips.length})` : ''}</span>
           </button>
         </div>
       )}
