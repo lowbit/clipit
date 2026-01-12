@@ -2,6 +2,10 @@
   "name": "clipit",
   "version": "1.1.0",
   "description": "Cross-platform game clip manager with multi-GPU encoding support",
+  "author": {
+    "name": "lowbit",
+    "email": "lowbit@users.noreply.github.com"
+  },
   "main": "out/main/index.mjs",
   "scripts": {
     "dev": "electron-vite dev",
@@ -63,8 +67,7 @@
     ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ],
       "icon": "resources/icon.ico"
     },
