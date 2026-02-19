@@ -1,4 +1,5 @@
 import Store from 'electron-store'
+import { safeStorage } from 'electron'
 import type { Settings } from '../../shared/types'
 
 interface StoreSchema {
@@ -15,7 +16,10 @@ const defaults: Settings = {
   quality: 'low',
   fps: '30',
   resolution: 'original',
-  preferredEncoder: 'auto'
+  preferredEncoder: 'auto',
+  streamableUsername: '',
+  streamablePassword: '',
+  lastSeenChangelog: ''
 }
 
 class SettingsStore {
@@ -30,10 +34,26 @@ class SettingsStore {
     })
   }
 
+  private encryptPassword(plain: string): string {
+    if (!plain || !safeStorage.isEncryptionAvailable()) return plain
+    try {
+      return safeStorage.encryptString(plain).toString('base64')
+    } catch {
+      return plain
+    }
+  }
+
+  private decryptPassword(stored: string): string {
+    if (!stored || !safeStorage.isEncryptionAvailable()) return stored
+    return safeStorage.decryptString(Buffer.from(stored, 'base64'))
+  }
+
   getAll(): Settings {
     const stored = this.store.get('settings', defaults)
     // Merge with defaults to ensure new fields are present
-    return { ...defaults, ...stored }
+    const merged = { ...defaults, ...stored }
+    merged.streamablePassword = this.decryptPassword(merged.streamablePassword)
+    return merged
   }
 
   get<K extends keyof Settings>(key: K): Settings[K] {
@@ -44,13 +64,19 @@ class SettingsStore {
   set<K extends keyof Settings>(key: K, value: Settings[K]): void {
     const settings = this.getAll()
     settings[key] = value
-    this.store.set('settings', settings)
+    // Re-encrypt before saving
+    const toSave = { ...settings }
+    toSave.streamablePassword = this.encryptPassword(toSave.streamablePassword)
+    this.store.set('settings', toSave)
   }
 
   setAll(newSettings: Partial<Settings>): void {
     const settings = this.getAll()
     const merged = { ...settings, ...newSettings }
-    this.store.set('settings', merged)
+    // Encrypt before saving
+    const toSave = { ...merged }
+    toSave.streamablePassword = this.encryptPassword(toSave.streamablePassword)
+    this.store.set('settings', toSave)
   }
 
   reset(): void {

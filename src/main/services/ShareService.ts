@@ -3,22 +3,19 @@ import path from 'path'
 import { settingsStore } from '../store/SettingsStore'
 import { encodeVideo } from './EncodeService'
 import { tunnelService } from './TunnelService'
+import { streamableService } from './StreamableService'
 import { safeCopyFile, safeUnlink } from '../utils/safeFileOps'
 import type { ShareRequest, ShareResult } from '../../shared/types'
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '../../shared/types'
 
 /**
- * Share a media file (copy to share folder if set, optionally encode)
- * Always shares via Cloudflare Tunnel
- *
- * Behavior:
- * - If shareDir IS set:
- *   - Always copy/encode files to shareDir
- * - If shareDir is NOT set:
- *   - If NOT encoding: Share original file from its location
- *   - If encoding: Put encoded file next to original file
+ * Prepare the file for sharing: encode if needed, copy to share dir if set.
+ * Returns the resolved sharePath, outputName, and whether it was already shared.
  */
-export async function shareMedia(request: ShareRequest): Promise<ShareResult> {
+async function prepareFile(request: ShareRequest): Promise<
+  { success: true; sharePath: string; outputName: string; shouldEncode: boolean; alreadyShared: boolean; sizeMb: number } |
+  { success: false; error: string }
+> {
   const { path: sourcePath, encode, codec, quality, fps, resolution } = request
 
   if (!fs.existsSync(sourcePath)) {
@@ -32,7 +29,6 @@ export async function shareMedia(request: ShareRequest): Promise<ShareResult> {
   let outputDir: string
 
   const fileExt = sourceParsed.ext.toLowerCase()
-  const isImage = IMAGE_EXTENSIONS.includes(fileExt)
   const isVideo = VIDEO_EXTENSIONS.includes(fileExt)
 
   // Images cannot be encoded - ignore encode flag for images
@@ -73,7 +69,7 @@ export async function shareMedia(request: ShareRequest): Promise<ShareResult> {
           // Silently fail cleanup
         }
       }
-      return { success: false, error: result.error }
+      return { success: false, error: result.error || 'Encoding failed' }
     }
   } else {
     outputName = sourceParsed.base
@@ -82,23 +78,12 @@ export async function shareMedia(request: ShareRequest): Promise<ShareResult> {
     if (shareDir) {
       if (fs.existsSync(sharePath) && sharePath !== sourcePath) {
         const stats = fs.statSync(sharePath)
-
-        const tunnelInfo = await tunnelService.start()
-        if (!tunnelInfo.isActive) {
-          return { success: false, error: 'Failed to start server' }
-        }
-
-        const fileUrl = tunnelService.getFileUrl(outputName)
-        if (!fileUrl) {
-          return { success: false, error: 'Failed to get share URL' }
-        }
-
         return {
           success: true,
-          shareUrl: fileUrl,
           sharePath,
+          outputName,
+          shouldEncode: false,
           alreadyShared: true,
-          encoded: false,
           sizeMb: Math.round(stats.size / (1024 * 1024) * 10) / 10
         }
       }
@@ -117,6 +102,40 @@ export async function shareMedia(request: ShareRequest): Promise<ShareResult> {
   }
 
   const stats = fs.statSync(sharePath)
+  return {
+    success: true,
+    sharePath,
+    outputName,
+    shouldEncode: !!shouldEncode,
+    alreadyShared: false,
+    sizeMb: Math.round(stats.size / (1024 * 1024) * 10) / 10
+  }
+}
+
+async function shareViaTunnel(prepared: { sharePath: string; outputName: string; shouldEncode: boolean; alreadyShared: boolean; sizeMb: number }): Promise<ShareResult> {
+  const { sharePath, outputName, shouldEncode, alreadyShared, sizeMb } = prepared
+  const shareDir = settingsStore.get('shareDir')
+
+  if (alreadyShared) {
+    const tunnelInfo = await tunnelService.start()
+    if (!tunnelInfo.isActive) {
+      return { success: false, error: 'Failed to start server' }
+    }
+
+    const fileUrl = tunnelService.getFileUrl(outputName)
+    if (!fileUrl) {
+      return { success: false, error: 'Failed to get share URL' }
+    }
+
+    return {
+      success: true,
+      shareUrl: fileUrl,
+      sharePath,
+      alreadyShared: true,
+      encoded: false,
+      sizeMb
+    }
+  }
 
   const tunnelInfo = await tunnelService.start()
   if (!tunnelInfo.isActive) {
@@ -145,7 +164,52 @@ export async function shareMedia(request: ShareRequest): Promise<ShareResult> {
     shareUrl: fileUrl,
     sharePath,
     alreadyShared: false,
-    encoded: !!shouldEncode,
-    sizeMb: Math.round(stats.size / (1024 * 1024) * 10) / 10
+    encoded: shouldEncode,
+    sizeMb
   }
+}
+
+async function shareViaStreamable(prepared: { sharePath: string; shouldEncode: boolean; sizeMb: number }): Promise<ShareResult> {
+  const { sharePath, shouldEncode, sizeMb } = prepared
+
+  const username = settingsStore.get('streamableUsername')
+  const password = settingsStore.get('streamablePassword')
+
+  if (!username || !password) {
+    return { success: false, error: 'Streamable credentials not configured. Go to Settings > Accounts.' }
+  }
+
+  const result = await streamableService.upload(sharePath, username, password)
+
+  if (!result.success) {
+    return { success: false, error: result.error }
+  }
+
+  return {
+    success: true,
+    shareUrl: `https://streamable.com/${result.shortcode}`,
+    sharePath,
+    alreadyShared: false,
+    encoded: shouldEncode,
+    sizeMb
+  }
+}
+
+/**
+ * Share a media file (copy to share folder if set, optionally encode)
+ * Supports sharing via Cloudflare Tunnel or Streamable upload.
+ */
+export async function shareMedia(request: ShareRequest): Promise<ShareResult> {
+  const destination = request.destination || 'tunnel'
+
+  const prepared = await prepareFile(request)
+  if (!prepared.success) {
+    return { success: false, error: prepared.error }
+  }
+
+  if (destination === 'streamable') {
+    return shareViaStreamable(prepared)
+  }
+
+  return shareViaTunnel(prepared)
 }

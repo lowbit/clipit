@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react'
 import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/Sidebar'
 import MainContent from './components/MainContent'
 import SettingsModal from './components/SettingsModal'
 import TunnelNoticeModal from './components/TunnelNoticeModal'
+import ChangelogModal from './components/ChangelogModal'
 import SetupScreen from './components/SetupScreen'
 import LoadingOverlay from './components/LoadingOverlay'
 import ToastContainer from './components/ToastContainer'
@@ -16,6 +18,8 @@ function AppContent() {
     showSettings,
     showTunnelNotice,
     dismissTunnelNotice,
+    showChangelog,
+    dismissChangelog,
     updateStatus,
     updateVersion,
     updateProgress,
@@ -23,6 +27,12 @@ function AppContent() {
     installUpdate,
     dismissUpdate
   } = useApp()
+
+  const [appVersion, setAppVersion] = useState('')
+
+  useEffect(() => {
+    window.clipit.getAppVersion().then(setAppVersion)
+  }, [])
 
   if (!isConfigured) {
     return (
@@ -59,6 +69,7 @@ function AppContent() {
       <MainContent />
       {showSettings && <SettingsModal />}
       {showTunnelNotice && <TunnelNoticeModal onDismiss={dismissTunnelNotice} />}
+      {showChangelog && <ChangelogModal version={appVersion} onDismiss={dismissChangelog} />}
       {loading && <LoadingOverlay text={loadingText} />}
       <ToastContainer />
     </div>

@@ -3,8 +3,10 @@ import { useApp } from '../context/AppContext'
 import Timeline from './Timeline'
 import { Play, Pause, RotateCcw, Scissors, Share2, Trash2, Volume2, VolumeX, Loader2 } from 'lucide-react'
 
+type ShareDestination = 'tunnel' | 'streamable'
+
 export default function MainContent() {
-  const { selectedClip, clipInfo, refreshClips, refreshGames, selectClip, setLoading, addToast } = useApp()
+  const { selectedClip, clipInfo, refreshClips, refreshGames, selectClip, setLoading, addToast, settings } = useApp()
   const videoRef = useRef<HTMLVideoElement>(null)
 
   // Trim state
@@ -18,11 +20,18 @@ export default function MainContent() {
   const [saveAsCopy, setSaveAsCopy] = useState(true)
   const [showSaveDropdown, setShowSaveDropdown] = useState(false)
   const saveDropdownRef = useRef<HTMLDivElement>(null)
+  const [shareDestination, setShareDestination] = useState<ShareDestination>('tunnel')
+  const [showShareDropdown, setShowShareDropdown] = useState(false)
+  const shareDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('clipit:saveAsCopy')
     if (saved !== null) {
       setSaveAsCopy(saved === 'true')
+    }
+    const savedDest = localStorage.getItem('clipit:shareDestination')
+    if (savedDest === 'tunnel' || savedDest === 'streamable') {
+      setShareDestination(savedDest)
     }
   }, [])
 
@@ -86,6 +95,12 @@ export default function MainContent() {
     setShowSaveDropdown(false)
   }, [])
 
+  const handleShareDestinationChange = useCallback((dest: ShareDestination) => {
+    setShareDestination(dest)
+    localStorage.setItem('clipit:shareDestination', dest)
+    setShowShareDropdown(false)
+  }, [])
+
   const handleToggleMute = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted
@@ -131,46 +146,70 @@ export default function MainContent() {
   const handleShare = useCallback(async () => {
     if (!selectedClip) return
 
+    const isStreamable = shareDestination === 'streamable'
+
     try {
-      const settings = await window.clipit.getSettings()
+      const currentSettings = await window.clipit.getSettings()
+
+      if (isStreamable && (!currentSettings.streamableUsername || !currentSettings.streamablePassword)) {
+        addToast('Streamable credentials not configured. Go to Settings > Accounts.', 'error')
+        return
+      }
 
       // Show encoding message if encoding is enabled and file is a video
       const isVideo = selectedClip.type === 'video'
-      if (settings.encodeOnShare && isVideo) {
+      if (currentSettings.encodeOnShare && isVideo) {
         setLoading(true, 'Encoding video...')
         // Small delay to show the encoding message
         await new Promise(resolve => setTimeout(resolve, 100))
       } else {
-        setLoading(true, 'Preparing to share...')
+        setLoading(true, isStreamable ? 'Uploading to Streamable...' : 'Preparing to share...')
       }
 
-      const result = await window.clipit.share({
-        path: selectedClip.path,
-        encode: settings.encodeOnShare,
-        codec: settings.codec,
-        quality: settings.quality,
-        fps: settings.fps,
-        resolution: settings.resolution
-      })
+      // Set up upload progress listener for Streamable
+      let cleanupProgress: (() => void) | null = null
+      if (isStreamable) {
+        cleanupProgress = window.clipit.onUploadProgress((progress) => {
+          setLoading(true, `Uploading to Streamable... ${progress.percent}%`)
+        })
+      }
 
-      if (result.success) {
-        if (result.shareUrl) {
-          await window.clipit.copyToClipboard(result.shareUrl)
-          addToast(result.alreadyShared ? 'URL copied to clipboard!' : 'Share URL copied to clipboard!', 'success')
-          // Notify sidebar that tunnel state may have changed
-          window.dispatchEvent(new Event('tunnel-state-changed'))
+      try {
+        const result = await window.clipit.share({
+          path: selectedClip.path,
+          destination: shareDestination,
+          encode: currentSettings.encodeOnShare,
+          codec: currentSettings.codec,
+          quality: currentSettings.quality,
+          fps: currentSettings.fps,
+          resolution: currentSettings.resolution
+        })
+
+        if (result.success) {
+          if (result.shareUrl) {
+            await window.clipit.copyToClipboard(result.shareUrl)
+            if (isStreamable) {
+              addToast('Streamable URL copied to clipboard!', 'success')
+            } else {
+              addToast(result.alreadyShared ? 'URL copied to clipboard!' : 'Share URL copied to clipboard!', 'success')
+              // Notify sidebar that tunnel state may have changed
+              window.dispatchEvent(new Event('tunnel-state-changed'))
+            }
+          } else {
+            addToast('Shared successfully', 'success')
+          }
         } else {
-          addToast('Shared successfully', 'success')
+          addToast(result.error || 'Share failed', 'error')
         }
-      } else {
-        addToast(result.error || 'Share failed', 'error')
+      } finally {
+        if (cleanupProgress) cleanupProgress()
       }
     } catch (error) {
       addToast('Share failed', 'error')
     } finally {
       setLoading(false)
     }
-  }, [selectedClip, setLoading, addToast])
+  }, [selectedClip, shareDestination, setLoading, addToast])
 
   const handleDelete = useCallback(async () => {
     if (!selectedClip) return
@@ -239,6 +278,19 @@ export default function MainContent() {
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showSaveDropdown])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (shareDropdownRef.current && !shareDropdownRef.current.contains(e.target as Node)) {
+        setShowShareDropdown(false)
+      }
+    }
+
+    if (showShareDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showShareDropdown])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -416,10 +468,39 @@ export default function MainContent() {
               </div>
             </>
           )}
-          <button className="btn btn-secondary" onClick={handleShare}>
-            <Share2 size={16} />
-            Share
-          </button>
+          <div className="split-button-container" ref={shareDropdownRef}>
+            <button className="btn btn-secondary split-button-main" onClick={handleShare}>
+              <Share2 size={16} />
+              {shareDestination === 'streamable' ? 'Streamable' : 'Tunnel'}
+            </button>
+            <button
+              className="btn btn-secondary split-button-arrow"
+              onClick={() => setShowShareDropdown(!showShareDropdown)}
+            />
+            {showShareDropdown && (
+              <div className="split-button-dropdown">
+                <button
+                  className={`split-button-option ${shareDestination === 'tunnel' ? 'selected' : ''}`}
+                  onClick={() => handleShareDestinationChange('tunnel')}
+                >
+                  Tunnel
+                </button>
+                <button
+                  className={`split-button-option ${shareDestination === 'streamable' ? 'selected' : ''} ${!settings?.streamableUsername || !settings?.streamablePassword ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (settings?.streamableUsername && settings?.streamablePassword) {
+                      handleShareDestinationChange('streamable')
+                    } else {
+                      addToast('Configure Streamable credentials in Settings > Accounts first', 'info')
+                      setShowShareDropdown(false)
+                    }
+                  }}
+                >
+                  Streamable
+                </button>
+              </div>
+            )}
+          </div>
           <button className="btn btn-danger" onClick={handleDelete}>
             <Trash2 size={16} />
             Delete

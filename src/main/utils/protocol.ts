@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { Readable } from 'stream'
 import { getThumbnail } from '../services/ThumbnailService'
+import { settingsStore } from '../store/SettingsStore'
 
 /**
  * Parse file path from custom protocol URL
@@ -158,6 +159,10 @@ export function registerProtocols() {
 
       if (!fs.existsSync(filePath)) {
         return new Response('File not found', { status: 404 })
+      }
+
+      if (!settingsStore.get('generateThumbnails')) {
+        return new Response('', { status: 204 })
       }
 
       const thumbnailData = await getThumbnail(filePath, parseFloat(time))

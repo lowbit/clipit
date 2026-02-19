@@ -1158,6 +1158,15 @@ body {
   font-weight: bold;
 }
 
+.split-button-option.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.split-button-option.disabled:hover {
+  background: transparent;
+}
+
 /* Sidebar Footer - Discord Style */
 .sidebar-footer {
   margin-top: auto;

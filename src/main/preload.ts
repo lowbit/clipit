@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Settings, ShareRequest, Game, Clip, ClipInfo, TrimResult, ShareResult, EncoderInfo } from '../shared/types'
+import type { Settings, ShareRequest, Game, Clip, ClipInfo, TrimResult, ShareResult, EncoderInfo, UploadProgress } from '../shared/types'
 
 contextBridge.exposeInMainWorld('clipit', {
   getGames: (): Promise<Game[]> =>
@@ -112,6 +112,12 @@ contextBridge.exposeInMainWorld('clipit', {
     return () => ipcRenderer.removeListener('update-download-progress', handler)
   },
 
+  onUploadProgress: (callback: (progress: UploadProgress) => void) => {
+    const handler = (_: any, progress: any) => callback(progress)
+    ipcRenderer.on('upload-progress', handler)
+    return () => ipcRenderer.removeListener('upload-progress', handler)
+  },
+
   onUpdateDownloaded: (callback: (info: { version: string }) => void) => {
     const handler = (_: any, info: any) => callback(info)
     ipcRenderer.on('update-downloaded', handler)
@@ -159,6 +165,7 @@ declare global {
       installUpdate: () => Promise<void>
       onUpdateAvailable: (callback: (info: { version: string; releaseDate: string; releaseNotes: string }) => void) => () => void
       onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => () => void
+      onUploadProgress: (callback: (progress: UploadProgress) => void) => () => void
       onUpdateDownloaded: (callback: (info: { version: string }) => void) => () => void
       onUpdateError: (callback: (error: { error: string }) => void) => () => void
     }

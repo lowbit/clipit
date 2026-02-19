@@ -5,6 +5,7 @@ import { registerIpcHandlers } from './ipc/handlers'
 import { registerProtocols } from './utils/protocol'
 import { tunnelService } from './services/TunnelService'
 import { updateService } from './services/UpdateService'
+import { streamableService } from './services/StreamableService'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -38,6 +39,7 @@ const createWindow = () => {
 
     if (mainWindow) {
       updateService.setMainWindow(mainWindow)
+      streamableService.setMainWindow(mainWindow)
       setTimeout(() => {
         updateService.checkForUpdates()
       }, 3000)

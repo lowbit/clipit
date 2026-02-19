@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { Folder, FolderOpen, Film, Cpu, X, Save, Trash2 } from 'lucide-react'
+import { Folder, FolderOpen, Film, Cpu, X, Save, Trash2, User } from 'lucide-react'
 
 export default function SettingsModal() {
   const { settings, updateSettings, pickDirectory, setShowSettings, encoders, detectEncoders, addToast } = useApp()
@@ -14,6 +14,8 @@ export default function SettingsModal() {
   const [fps, setFps] = useState(settings?.fps || 'original')
   const [resolution, setResolution] = useState(settings?.resolution || 'original')
   const [preferredEncoder, setPreferredEncoder] = useState(settings?.preferredEncoder || 'auto')
+  const [streamableUsername, setStreamableUsername] = useState(settings?.streamableUsername || '')
+  const [streamablePassword, setStreamablePassword] = useState(settings?.streamablePassword || '')
 
   useEffect(() => {
     if (encoders.length === 0) {
@@ -45,7 +47,9 @@ export default function SettingsModal() {
       quality: quality as 'high' | 'medium' | 'low',
       fps: fps as 'original' | '60' | '30',
       resolution: resolution as 'original' | '1080' | '720',
-      preferredEncoder
+      preferredEncoder,
+      streamableUsername,
+      streamablePassword
     })
     addToast('Settings saved', 'success')
     setShowSettings(false)
@@ -225,6 +229,47 @@ export default function SettingsModal() {
               </div>
             </>
           )}
+        </div>
+
+        <div className="modal-section">
+          <h3 className="modal-section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <User size={16} />
+            <span>Accounts</span>
+          </h3>
+
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            Optional: Configure Streamable credentials to enable direct video uploads.
+          </p>
+
+          <div className="form-group">
+            <label className="form-label">Streamable Username</label>
+            <input
+              type="text"
+              className="form-input"
+              value={streamableUsername}
+              onChange={(e) => setStreamableUsername(e.target.value)}
+              placeholder="Username or email"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Streamable Password</label>
+            <input
+              type="password"
+              className="form-input"
+              value={streamablePassword}
+              onChange={(e) => setStreamablePassword(e.target.value)}
+              placeholder="Password"
+              autoComplete="off"
+            />
+          </div>
+
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.5' }}>
+            Signed up with Google or Facebook? You'll need to set a password on your Streamable account first
+            at <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => window.clipit.openExternal('https://streamable.com/account')}>streamable.com/account</span>.
+            We use username/password authentication because Streamable's Terms of Service do not permit third-party OAuth integration.
+          </p>
         </div>
 
         <div className="modal-section">

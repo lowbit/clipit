@@ -54,6 +54,8 @@ interface AppContextType {
   setShowSettings: (show: boolean) => void
   showTunnelNotice: boolean
   dismissTunnelNotice: () => Promise<void>
+  showChangelog: boolean
+  dismissChangelog: () => Promise<void>
 
   // Updates
   updateStatus: 'none' | 'available' | 'downloading' | 'ready'
@@ -98,6 +100,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loadingText, setLoadingText] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [showTunnelNotice, setShowTunnelNotice] = useState(false)
+  const [showChangelog, setShowChangelog] = useState(false)
 
   // Update state
   const [updateStatus, setUpdateStatus] = useState<'none' | 'available' | 'downloading' | 'ready'>('none')
@@ -209,6 +212,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       if (configured) {
+        const appVersion = await window.clipit.getAppVersion()
+        if (appVersion && loadedSettings.lastSeenChangelog !== appVersion) {
+          setShowChangelog(true)
+        }
+
         const loadedGames = await window.clipit.getGames()
         setGames(loadedGames)
       }
@@ -311,6 +319,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const updated = await window.clipit.getSettings()
     setSettings(updated)
     setShowTunnelNotice(false)
+  }, [])
+
+  const dismissChangelog = useCallback(async () => {
+    const appVersion = await window.clipit.getAppVersion()
+    await window.clipit.setSettings({ lastSeenChangelog: appVersion })
+    const updated = await window.clipit.getSettings()
+    setSettings(updated)
+    setShowChangelog(false)
   }, [])
 
   const selectGame = useCallback(async (game: string | null) => {
@@ -516,6 +532,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setShowSettings,
     showTunnelNotice,
     dismissTunnelNotice,
+    showChangelog,
+    dismissChangelog,
     updateStatus,
     updateVersion,
     updateProgress,

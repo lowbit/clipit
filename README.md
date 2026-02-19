@@ -18,6 +18,7 @@ Desktop app for managing and sharing game clips. Organize recordings by game, tr
 - Video trimming with frame-accurate preview
 - Hardware-accelerated encoding (NVIDIA NVENC, AMD VCE, Intel QSV)
 - Temporary public sharing with Cloudflare tunnels
+- Direct video uploads to Streamable
 - Auto-updates via GitHub releases
 - Cross-platform (Windows, Linux)
 

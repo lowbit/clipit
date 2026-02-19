@@ -31,13 +31,22 @@ export interface TrimResult {
   savedAsCopy?: boolean
 }
 
+export type ShareDestination = 'tunnel' | 'streamable'
+
 export interface ShareRequest {
   path: string
+  destination?: ShareDestination
   encode?: boolean
   codec?: 'h264' | 'h265'
   quality?: 'high' | 'medium' | 'low'
   fps?: 'original' | '60' | '30'
   resolution?: 'original' | '1080' | '720'
+}
+
+export interface UploadProgress {
+  percent: number
+  uploadedMb: number
+  totalMb: number
 }
 
 export interface ShareResult {
@@ -61,6 +70,9 @@ export interface Settings {
   fps: 'original' | '60' | '30'
   resolution: 'original' | '1080' | '720'
   preferredEncoder: string
+  streamableUsername: string
+  streamablePassword: string
+  lastSeenChangelog: string
 }
 
 export interface EncoderInfo {
