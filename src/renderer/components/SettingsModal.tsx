@@ -267,7 +267,7 @@ export default function SettingsModal() {
 
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.5' }}>
             Signed up with Google or Facebook? You'll need to set a password on your Streamable account first
-            at <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => window.clipit.openExternal('https://streamable.com/account')}>streamable.com/account</span>.
+              at <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => window.clipit.openExternal('https://streamable.com/profile')}>streamable.com/profile</span>.
             We use username/password authentication because Streamable's Terms of Service do not permit third-party OAuth integration.
           </p>
         </div>

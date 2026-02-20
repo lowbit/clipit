@@ -45,7 +45,11 @@ class SettingsStore {
 
   private decryptPassword(stored: string): string {
     if (!stored || !safeStorage.isEncryptionAvailable()) return stored
-    return safeStorage.decryptString(Buffer.from(stored, 'base64'))
+    try {
+      return safeStorage.decryptString(Buffer.from(stored, 'base64'))
+    } catch {
+      return stored
+    }
   }
 
   getAll(): Settings {
