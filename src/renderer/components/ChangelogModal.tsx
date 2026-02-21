@@ -1,4 +1,5 @@
 import { Megaphone } from 'lucide-react'
+import changelog from '../../shared/changelog'
 
 interface ChangelogModalProps {
   version: string
@@ -6,6 +7,8 @@ interface ChangelogModalProps {
 }
 
 export default function ChangelogModal({ version, onDismiss }: ChangelogModalProps) {
+  const entry = changelog.find((e) => e.version === version)
+
   return (
     <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: '500px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
@@ -17,14 +20,19 @@ export default function ChangelogModal({ version, onDismiss }: ChangelogModalPro
 
           <div className="tunnel-notice-content">
             <div className="tunnel-notice-points">
-              <div className="tunnel-notice-point">
-                <span className="tunnel-notice-bullet">&bull;</span>
-                <span>Fixed thumbnail generation issue</span>
-              </div>
-              <div className="tunnel-notice-point">
-                <span className="tunnel-notice-bullet">&bull;</span>
-                <span>Added <strong>Streamable</strong> upload integration (direct video uploads)</span>
-              </div>
+              {entry ? (
+                entry.changes.map((change, i) => (
+                  <div key={i} className="tunnel-notice-point">
+                    <span className="tunnel-notice-bullet">&bull;</span>
+                    <span>{change}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="tunnel-notice-point">
+                  <span className="tunnel-notice-bullet">&bull;</span>
+                  <span>Bug fixes and improvements</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
