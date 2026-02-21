@@ -182,7 +182,7 @@ export default function SettingsModal() {
                 <select
                   className="form-select"
                   value={codec}
-                  onChange={(e) => setCodec(e.target.value)}
+                  onChange={(e) => setCodec(e.target.value as 'h264' | 'h265')}
                 >
                   <option value="h264">H.264</option>
                   <option value="h265">H.265 (HEVC)</option>
@@ -194,7 +194,7 @@ export default function SettingsModal() {
                 <select
                   className="form-select"
                   value={quality}
-                  onChange={(e) => setQuality(e.target.value)}
+                  onChange={(e) => setQuality(e.target.value as 'high' | 'medium' | 'low')}
                 >
                   <option value="high">High</option>
                   <option value="medium">Medium</option>
@@ -207,7 +207,7 @@ export default function SettingsModal() {
                 <select
                   className="form-select"
                   value={fps}
-                  onChange={(e) => setFps(e.target.value)}
+                  onChange={(e) => setFps(e.target.value as 'original' | '60' | '30')}
                 >
                   <option value="original">Original</option>
                   <option value="60">60 FPS</option>
@@ -220,7 +220,7 @@ export default function SettingsModal() {
                 <select
                   className="form-select"
                   value={resolution}
-                  onChange={(e) => setResolution(e.target.value)}
+                  onChange={(e) => setResolution(e.target.value as 'original' | '1080' | '720')}
                 >
                   <option value="original">Original</option>
                   <option value="1080">1080p</option>

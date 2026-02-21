@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
-import { Home, Globe, Settings, Loader2, Folder, FolderOpen, Video, Image, MoreVertical, Eye, Trash2, Edit, Copy, ChevronLeft, ChevronRight, ChevronRight as Separator, RefreshCw } from 'lucide-react'
+import { Home, Globe, Settings, Loader2, Folder, FolderOpen, Video, Image, Eye, Trash2, Edit, Copy, ChevronLeft, ChevronRight, ChevronRight as Separator, RefreshCw } from 'lucide-react'
 import type { Clip } from '../../shared/types'
 
 export default function Sidebar() {

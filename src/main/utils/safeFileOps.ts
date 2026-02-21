@@ -39,7 +39,7 @@ function sleep(ms: number): Promise<void> {
 async function withRetry<T>(
   operation: () => T,
   options: RetryOptions = {},
-  operationName: string = 'file operation'
+  _operationName: string = 'file operation'
 ): Promise<T> {
   const opts = { ...DEFAULT_RETRY_OPTIONS, ...options }
   let lastError: any

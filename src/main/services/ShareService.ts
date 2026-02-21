@@ -6,7 +6,7 @@ import { tunnelService } from './TunnelService'
 import { streamableService } from './StreamableService'
 import { safeCopyFile, safeUnlink } from '../utils/safeFileOps'
 import type { ShareRequest, ShareResult } from '../../shared/types'
-import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '../../shared/types'
+import { VIDEO_EXTENSIONS } from '../../shared/types'
 
 /**
  * Prepare the file for sharing: encode if needed, copy to share dir if set.
